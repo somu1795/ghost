@@ -58,10 +58,13 @@ export const verifyAgentRequest = async (
   }
 
   const nonceKey = REDIS_KEYS.nonce(agentId, nonce);
-  const set = await redis.set(nonceKey, "1", {
-    ex: NONCE_TTL_SECONDS,
-    nx: true,
-  });
+  const set = await redis.set(
+    nonceKey,
+    "1",
+    "EX",
+    NONCE_TTL_SECONDS,
+    "NX"
+  );
   if (set === null) {
     throw new AgentAuthError("Nonce already used", 409);
   }
