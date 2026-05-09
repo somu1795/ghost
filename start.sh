@@ -41,16 +41,20 @@ until [ "$(docker compose ps postgres -q | xargs -r docker inspect -f '{{.State.
 done
 echo -e "\n${GREEN}PostgreSQL is ready!${NC}\n"
 
-# 4. Database Migrations
+# 4. Build the Ghost Application
+echo -e "${GREEN}Building the Ghost application image...${NC}"
+docker compose build ghost
+
+# 5. Database Migrations
 echo -e "${GREEN}Running database migrations...${NC}"
 # We run this in a temporary container using the ghost image to ensure the schema matches the codebase
 # Using bunx to fetch the prisma CLI dynamically as needed
 docker compose run --rm --entrypoint="bunx prisma migrate deploy" ghost
 echo -e "${GREEN}Database migrations complete.${NC}\n"
 
-# 5. Start Application
-echo -e "${GREEN}Building and starting the Ghost application...${NC}"
-docker compose up -d --build ghost
+# 6. Start Application
+echo -e "${GREEN}Starting the Ghost application...${NC}"
+docker compose up -d ghost
 
 echo -e "\n${GREEN}====================================================${NC}"
 echo -e "${GREEN}🚀 Ghost is now running successfully!${NC}"
