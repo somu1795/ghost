@@ -1,5 +1,5 @@
 import "./styles.css";
-import { Analytics } from "@vercel/analytics/next";
+
 import { GeistMono } from "geist/font/mono";
 import { GeistPixelSquare } from "geist/font/pixel";
 import { GeistSans } from "geist/font/sans";
@@ -57,7 +57,7 @@ const RootLayout = ({ children }: { children: ReactNode }) => (
         <Toaster position="bottom-center" />
       </ThemeProvider>
       <JsonLd code={softwareApplicationJsonLd} />
-      <Analytics />
+
     </body>
   </html>
 );

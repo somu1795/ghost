@@ -1,5 +1,3 @@
-import { FatalError, sleep } from "workflow";
-
 import {
   stepAgentConnected,
   stepCreateHetznerServer,
@@ -20,6 +18,9 @@ const ENROLL_POLL_SECONDS = 6;
 const MAX_INSTALL_WAIT_SECONDS = 900;
 const INSTALL_POLL_SECONDS = 10;
 
+const sleep = (seconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
+
 type PollOutcome<T> =
   | { type: "ready"; value: T }
   | { type: "cancelled" }
@@ -39,12 +40,12 @@ const waitForHetznerRunning = async (input: {
       return { type: "ready", value: { ipv4: status.ip } };
     }
     if (status.status === "unknown") {
-      throw new FatalError("Hetzner server not found after create");
+      throw new Error("Hetzner server not found after create");
     }
     if (await isCancelled(input.serverId)) {
       return { type: "cancelled" };
     }
-    await sleep(`${HETZNER_POLL_SECONDS}s`);
+    await sleep(HETZNER_POLL_SECONDS);
   }
   return { type: "timeout" };
 };
@@ -60,7 +61,7 @@ const waitForEnrollment = async (
     if (await isCancelled(serverId)) {
       return { type: "cancelled" };
     }
-    await sleep(`${ENROLL_POLL_SECONDS}s`);
+    await sleep(ENROLL_POLL_SECONDS);
   }
   return { type: "timeout" };
 };
@@ -84,14 +85,12 @@ const waitForInstall = async (serverId: string): Promise<InstallOutcome> => {
     if (await isCancelled(serverId)) {
       return { type: "cancelled" };
     }
-    await sleep(`${INSTALL_POLL_SECONDS}s`);
+    await sleep(INSTALL_POLL_SECONDS);
   }
   return { type: "timeout" };
 };
 
 export const provisionServer = async (input: { serverId: string }) => {
-  "use workflow";
-
   const { serverId } = input;
 
   try {
@@ -151,9 +150,5 @@ export const provisionServer = async (input: { serverId: string }) => {
   } catch (error) {
     const reason = error instanceof Error ? error.message : "Unknown error";
     await stepMarkFailed({ reason, serverId });
-    if (error instanceof FatalError) {
-      return;
-    }
-    throw error;
   }
 };

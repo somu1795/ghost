@@ -6,12 +6,12 @@ const opts = {
   dsn: env.NEXT_PUBLIC_SENTRY_DSN,
 };
 
-export const register = () => {
+export const register = async () => {
   if (env.NEXT_RUNTIME === "nodejs") {
     init(opts);
-  }
-
-  if (env.NEXT_RUNTIME === "edge") {
-    init(opts);
+    
+    // Start BullMQ workers (only in node.js runtime, not edge)
+    const { startWorkers } = await import("@/lib/queue");
+    await startWorkers();
   }
 };

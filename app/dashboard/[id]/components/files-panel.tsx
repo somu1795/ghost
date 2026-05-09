@@ -1,5 +1,4 @@
 "use client";
-import { upload } from "@vercel/blob/client";
 import {
   FileIcon,
   FolderIcon,
@@ -322,10 +321,17 @@ export const FilesPanel = ({ serverId }: Props) => {
     }
     setUploading(true);
     try {
-      const blob = await upload(file.name, file, {
-        access: "public",
-        handleUploadUrl: `/api/servers/${serverId}/files/upload-url`,
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`/api/servers/${serverId}/files/upload-url`, {
+        method: "POST",
+        body: form,
       });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(err.error ?? "Upload failed");
+      }
+      const blob = (await res.json()) as { url: string };
       await installFromUrl(blob.url, file.name);
       toast.success(`Uploaded ${file.name}`);
       load(path);

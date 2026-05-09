@@ -1,5 +1,3 @@
-import { sleep } from "workflow";
-
 import {
   stepDeleteHetzner,
   stepMarkDeleted,
@@ -10,9 +8,10 @@ import {
 const MAX_DRAIN_SECONDS = 120;
 const DRAIN_POLL_SECONDS = 3;
 
-export const teardownServer = async (input: { serverId: string }) => {
-  "use workflow";
+const sleep = (seconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
 
+export const teardownServer = async (input: { serverId: string }) => {
   const { serverId } = input;
 
   const { hadAgent } = await stepSendDeleteCommand(serverId);
@@ -24,7 +23,7 @@ export const teardownServer = async (input: { serverId: string }) => {
       if (phase === "deleted" || phase === "errored") {
         break;
       }
-      await sleep(`${DRAIN_POLL_SECONDS}s`);
+      await sleep(DRAIN_POLL_SECONDS);
     }
   }
 

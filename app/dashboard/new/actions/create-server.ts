@@ -6,7 +6,6 @@ import type { Prisma } from "@prisma/client";
 import { humanId } from "human-id";
 import { revalidatePath } from "next/cache";
 import { ulid } from "ulid";
-import { start } from "workflow/api";
 import { z } from "zod";
 
 import { games, validateSettings } from "@/games";
@@ -15,8 +14,8 @@ import { SNAPSHOT_ENVIRONMENT } from "@/lib/env";
 import { MissingHetznerCredentialsError } from "@/lib/hetzner";
 import { getHetznerCatalog } from "@/lib/hetzner/catalog";
 import { getUserHetznerImageContext } from "@/lib/hetzner/credentials";
+import { provisionQueue } from "@/lib/queue";
 import { requireUser } from "@/lib/session";
-import { provisionServer } from "@/lib/workflows/provision-server";
 
 const createServerSchema = z.object({
   game: z.enum(games.map((g) => g.id) as [string, ...string[]]),
@@ -121,7 +120,7 @@ export const createServer = async (
     },
   });
 
-  await start(provisionServer, [{ serverId: server.id }]);
+  await provisionQueue.add("provision-server", { serverId: server.id });
 
   revalidatePath("/dashboard", "layout");
 

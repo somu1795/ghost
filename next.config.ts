@@ -1,13 +1,14 @@
 import withBundleAnalyzer from "@next/bundle-analyzer";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
-import { withWorkflow } from "workflow/next";
 
 import { env } from "@/lib/env";
 
 const otelRegex = /@opentelemetry\/instrumentation/u;
 
 let config: NextConfig = {
+  output: "standalone",
+
   images: {
     formats: ["image/avif", "image/webp"],
     remotePatterns: [
@@ -42,20 +43,15 @@ let config: NextConfig = {
   },
 };
 
-if (env.VERCEL) {
+// Sentry is optional — only enable when DSN is configured
+if (env.NEXT_PUBLIC_SENTRY_DSN && env.SENTRY_ORG && env.SENTRY_PROJECT) {
   config = withSentryConfig(
     { ...config, transpilePackages: ["@sentry/nextjs"] },
     {
       org: env.SENTRY_ORG,
       project: env.SENTRY_PROJECT,
-      silent: !env.CI,
+      silent: true,
       tunnelRoute: "/monitoring",
-      webpack: {
-        automaticVercelMonitors: true,
-        treeshake: {
-          removeDebugLogging: true,
-        },
-      },
       widenClientFileUpload: true,
     }
   );
@@ -65,4 +61,4 @@ if (env.ANALYZE === "true") {
   config = withBundleAnalyzer()(config);
 }
 
-export default withWorkflow(config);
+export default config;

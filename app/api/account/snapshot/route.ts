@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 import { ulid } from "ulid";
-import { start } from "workflow/api";
-
 import { prisma } from "@/lib/db";
+import { snapshotQueue } from "@/lib/queue";
 import { requireUser } from "@/lib/session";
-import { buildSnapshot } from "@/lib/workflows/build-snapshot";
 
 export const runtime = "nodejs";
 
@@ -68,7 +66,7 @@ export const POST = async () => {
     );
   }
 
-  await start(buildSnapshot, [{ buildId, userId: user.id }]);
+  await snapshotQueue.add("build-snapshot", { buildId, userId: user.id });
 
   return NextResponse.json({ buildId });
 };

@@ -51,4 +51,5 @@ yarn-error.log*
 generated/
 .env*.local
 
-tsconfig.tsbuildinfo
+tsconfig.tsbuildinfodist/
+ghost-storage/

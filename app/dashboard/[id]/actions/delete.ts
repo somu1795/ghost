@@ -1,12 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { start } from "workflow/api";
 import { z } from "zod";
 
 import { prisma } from "@/lib/db";
+import { teardownQueue } from "@/lib/queue";
 import { requireUser } from "@/lib/session";
-import { teardownServer } from "@/lib/workflows/teardown-server";
 
 const inputSchema = z.object({ serverId: z.string().min(1) });
 
@@ -36,7 +35,7 @@ export const deleteServer = async (
     where: { id: parsed.data.serverId },
   });
 
-  await start(teardownServer, [{ serverId: parsed.data.serverId }]);
+  await teardownQueue.add("teardown-server", { serverId: parsed.data.serverId });
 
   revalidatePath("/dashboard", "layout");
 

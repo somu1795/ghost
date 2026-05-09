@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 
-import { FatalError, getStepMetadata } from "workflow";
+import { ulid } from "ulid";
 
 import { buildUfwRules, getGame } from "@/games";
 import type { GamePort } from "@/games";
@@ -44,7 +44,7 @@ const postCreateHetznerServer = async (input: {
     const message = body?.error?.message ?? response.statusText;
     const apiError = new HetznerApiError(response.status, code, message);
     if (apiError.isClientError) {
-      throw new FatalError(apiError.message);
+      throw new Error(apiError.message);
     }
     throw apiError;
   }
@@ -59,16 +59,11 @@ const buildCloudInit = (input: {
   bootstrapToken: string;
   apiBaseUrl: string;
   ports: readonly GamePort[];
-  vercelProtectionBypass: string | null;
 }): string => {
   const bootstrap = {
     apiBaseUrl: input.apiBaseUrl,
     bootstrapToken: input.bootstrapToken,
     serverId: input.serverId,
-    // Set on preview deployments so the agent can punch through Vercel's
-    // deployment protection on every callback. Null on prod (no auth wall) and
-    // local dev (no protection layer in front).
-    vercelProtectionBypass: input.vercelProtectionBypass,
   };
   const ufwRules = buildUfwRules(input.ports)
     .map((rule) => `  - ${rule}`)
@@ -89,7 +84,7 @@ ${ufwRules}
 };
 
 export const stepCreateHetznerServer = async (serverId: string) => {
-  "use step";
+  
 
   const server = await prisma.server.findUnique({
     where: { id: serverId },
@@ -111,7 +106,7 @@ export const stepCreateHetznerServer = async (serverId: string) => {
 
   const game = getGame(server.game);
   if (!game) {
-    throw new FatalError(`Unknown game: ${server.game}`);
+    throw new Error(`Unknown game: ${server.game}`);
   }
 
   let hetzner: HetznerClient;
@@ -124,7 +119,7 @@ export const stepCreateHetznerServer = async (serverId: string) => {
     hetzner = ctx.client;
     ({ imageId } = ctx);
   } catch {
-    throw new FatalError("Owner has not configured Hetzner credentials");
+    throw new Error("Owner has not configured Hetzner credentials");
   }
 
   const { token, jti, expiresAt } = await mintBootstrapJwt({ serverId });
@@ -138,10 +133,6 @@ export const stepCreateHetznerServer = async (serverId: string) => {
     bootstrapToken: token,
     ports: game.ports,
     serverId,
-    vercelProtectionBypass:
-      env.VERCEL_ENV === "production"
-        ? null
-        : (env.VERCEL_AUTOMATION_BYPASS_SECRET ?? null),
   });
 
   const hetznerName = `ghost-${serverId.toLowerCase().slice(-12)}-${crypto
@@ -201,7 +192,7 @@ export const stepGetHetznerStatus = async (input: {
   serverId: string;
   hetznerServerId: number;
 }) => {
-  "use step";
+  
   const owner = await prisma.server.findUnique({
     select: { userId: true },
     where: { id: input.serverId },
@@ -233,7 +224,7 @@ export const stepMarkHetznerRunning = async (input: {
   serverId: string;
   ipv4: string | null;
 }) => {
-  "use step";
+  
   const { count } = await prisma.server.updateMany({
     data: { ipv4: input.ipv4, phase: "booting" },
     where: { id: input.serverId },
@@ -250,7 +241,7 @@ export const stepMarkHetznerRunning = async (input: {
 };
 
 export const stepReadAgent = async (serverId: string) => {
-  "use step";
+  
   const agent = await prisma.agent.findUnique({
     select: { createdAt: true, id: true, lastHeartbeatAt: true },
     where: { serverId },
@@ -259,7 +250,7 @@ export const stepReadAgent = async (serverId: string) => {
 };
 
 export const stepAgentConnected = async (serverId: string) => {
-  "use step";
+  
   const { count } = await prisma.server.updateMany({
     data: { observedState: "provisioning", phase: "agent_connected" },
     where: { id: serverId },
@@ -275,8 +266,8 @@ export const stepAgentConnected = async (serverId: string) => {
 };
 
 export const stepSendInstallConfig = async (serverId: string) => {
-  "use step";
-  const { stepId } = getStepMetadata();
+  
+  const stepId = ulid();
   const server = await prisma.server.findUnique({
     where: { id: serverId },
   });
@@ -286,7 +277,7 @@ export const stepSendInstallConfig = async (serverId: string) => {
 
   const game = getGame(server.game);
   if (!game) {
-    throw new FatalError(`Unknown game: ${server.game}`);
+    throw new Error(`Unknown game: ${server.game}`);
   }
 
   const compose = game.buildCompose(
@@ -321,7 +312,7 @@ export const stepSendInstallConfig = async (serverId: string) => {
 };
 
 export const stepMarkReady = async (serverId: string) => {
-  "use step";
+  
   const { count } = await prisma.server.updateMany({
     data: { observedState: "running", phase: "ready" },
     where: { id: serverId },
@@ -340,7 +331,7 @@ export const stepMarkFailed = async (input: {
   serverId: string;
   reason: string;
 }) => {
-  "use step";
+  
   const { count } = await prisma.server.updateMany({
     data: { errorReason: input.reason, observedState: "failed" },
     where: { id: input.serverId },
@@ -359,8 +350,8 @@ export const stepMarkFailed = async (input: {
 const AGENT_LIVENESS_WINDOW_MS = 60_000;
 
 export const stepSendDeleteCommand = async (serverId: string) => {
-  "use step";
-  const { stepId } = getStepMetadata();
+  
+  const stepId = ulid();
   const agent = await prisma.agent.findUnique({ where: { serverId } });
   if (!agent) {
     return { hadAgent: false };
@@ -384,7 +375,7 @@ export const stepSendDeleteCommand = async (serverId: string) => {
 };
 
 export const stepDeleteHetzner = async (serverId: string) => {
-  "use step";
+  
   const server = await prisma.server.findUnique({ where: { id: serverId } });
   if (!server?.hetznerServerId) {
     return { deleted: false };
@@ -407,7 +398,7 @@ export const stepDeleteHetzner = async (serverId: string) => {
 };
 
 export const stepMarkDeleted = async (serverId: string) => {
-  "use step";
+  
   const { count } = await prisma.server.updateMany({
     data: {
       deletedAt: new Date(),
@@ -429,7 +420,7 @@ export const stepMarkDeleted = async (serverId: string) => {
 export const stepReadPhase = async (
   serverId: string
 ): Promise<Phase | null> => {
-  "use step";
+  
   const server = await prisma.server.findUnique({
     select: { phase: true },
     where: { id: serverId },
@@ -440,7 +431,7 @@ export const stepReadPhase = async (
 export const stepReadAgentPhase = async (
   serverId: string
 ): Promise<Phase | null> => {
-  "use step";
+  
   const event = await prisma.activityEvent.findFirst({
     orderBy: { seq: "desc" },
     select: { phase: true },
@@ -450,7 +441,7 @@ export const stepReadAgentPhase = async (
 };
 
 export const stepReadDesiredState = async (serverId: string) => {
-  "use step";
+  
   const server = await prisma.server.findUnique({
     select: { desiredState: true },
     where: { id: serverId },

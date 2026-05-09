@@ -1,0 +1,7 @@
+# This Caddyfile is for the VPS (public-facing) to proxy traffic via Tailscale
+# Replace ghost.example.com with your actual domain
+# Replace 100.x.y.z with the Tailscale IP of your EPYC server running Docker
+
+ghost.example.com {
+    reverse_proxy 100.x.y.z:3000
+}

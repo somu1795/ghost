@@ -2,12 +2,12 @@ import "server-only";
 import crypto from "node:crypto";
 
 import type { SnapshotBuildStatus } from "@prisma/client";
-import { del as blobDel, put } from "@vercel/blob";
-import { FatalError } from "workflow";
+
+import { storageDel, storagePut } from "@/lib/storage";
 
 import { mintSnapshotDownloadToken } from "@/lib/agent/snapshot-token";
 import { prisma } from "@/lib/db";
-import { API_URL, env, SNAPSHOT_ENVIRONMENT } from "@/lib/env";
+import { API_URL, SNAPSHOT_ENVIRONMENT } from "@/lib/env";
 import {
   HetznerApiError,
   MissingHetznerCredentialsError,
@@ -30,7 +30,6 @@ export const stepUpdateBuildStatus = async (input: {
   buildId: string;
   status: SnapshotBuildStatus;
 }) => {
-  "use step";
   await prisma.snapshotBuild.update({
     data: { status: input.status },
     where: { id: input.buildId },
@@ -44,13 +43,11 @@ export const stepCompileAgent = async (input: {
   agentDownloadUrl: string;
   agentSha: string;
 }> => {
-  "use step";
-
   const build = await prisma.snapshotBuild.findUnique({
     where: { id: input.buildId },
   });
   if (!build) {
-    throw new FatalError(`SnapshotBuild ${input.buildId} not found`);
+    throw new Error(`SnapshotBuild ${input.buildId} not found`);
   }
 
   await prisma.snapshotBuild.update({
@@ -63,10 +60,7 @@ export const stepCompileAgent = async (input: {
   // an earlier failed run at the same git commit. The blob is deleted in the
   // workflow's finalizer (`stepDeleteAgentBlob`) once the snapshot is ready.
   const pathname = `agents/ghost-agent-${input.buildId}-${sha.slice(0, 12)}.bin`;
-  const uploaded = await put(pathname, bytes, {
-    access: "private",
-    addRandomSuffix: false,
-    cacheControlMaxAge: 60 * 60,
+  const uploaded = await storagePut(pathname, bytes, {
     contentType: "application/octet-stream",
   });
   const agentBlobUrl = uploaded.url;
@@ -81,12 +75,6 @@ export const stepCompileAgent = async (input: {
     ttlSeconds: AGENT_DOWNLOAD_TOKEN_TTL_SECONDS,
   });
   const params = new URLSearchParams({ t: downloadToken });
-  if (env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-    params.set(
-      "x-vercel-protection-bypass",
-      env.VERCEL_AUTOMATION_BYPASS_SECRET
-    );
-  }
   const agentDownloadUrl = `${API_URL}/api/snapshot/agent-binary?${params.toString()}`;
 
   return { agentBlobUrl, agentDownloadUrl, agentSha: sha };
@@ -97,14 +85,14 @@ export const stepCreateBuilderVm = async (input: {
   userId: string;
   agentDownloadUrl: string;
 }): Promise<{ hetznerBuilderId: number }> => {
-  "use step";
+  
 
   let hetzner: Awaited<ReturnType<typeof getUserHetznerContext>>["client"];
   try {
     ({ client: hetzner } = await getUserHetznerContext(input.userId));
   } catch (error) {
     if (error instanceof MissingHetznerCredentialsError) {
-      throw new FatalError("Hetzner credentials missing for user");
+      throw new Error("Hetzner credentials missing for user");
     }
     throw error;
   }
@@ -133,7 +121,7 @@ export const stepCreateBuilderVm = async (input: {
     const message = body?.error?.message ?? response.statusText;
     const apiError = new HetznerApiError(response.status, code, message);
     if (apiError.isClientError) {
-      throw new FatalError(apiError.message);
+      throw new Error(apiError.message);
     }
     throw apiError;
   }
@@ -154,7 +142,7 @@ export const stepGetBuilderStatus = async (input: {
   userId: string;
   hetznerBuilderId: number;
 }): Promise<{ status: string }> => {
-  "use step";
+  
   const { client } = await getUserHetznerContext(input.userId);
   const { data, error, response } = await client.GET("/servers/{id}", {
     params: { path: { id: input.hetznerBuilderId } },
@@ -172,7 +160,7 @@ export const stepCreateSnapshot = async (input: {
   userId: string;
   hetznerBuilderId: number;
 }): Promise<{ snapshotImageId: number }> => {
-  "use step";
+  
   const { client } = await getUserHetznerContext(input.userId);
   const { data, error, response } = await client.POST(
     "/servers/{id}/actions/create_image",
@@ -189,7 +177,7 @@ export const stepCreateSnapshot = async (input: {
     const message = body?.error?.message ?? response.statusText;
     const apiError = new HetznerApiError(response.status, code, message);
     if (apiError.isClientError) {
-      throw new FatalError(apiError.message);
+      throw new Error(apiError.message);
     }
     throw apiError;
   }
@@ -204,7 +192,7 @@ export const stepGetImageStatus = async (input: {
   userId: string;
   imageId: number;
 }): Promise<{ status: string }> => {
-  "use step";
+  
   const { client } = await getUserHetznerContext(input.userId);
   const { data, error, response } = await client.GET("/images/{id}", {
     params: { path: { id: input.imageId } },
@@ -223,7 +211,6 @@ export const stepSaveImageId = async (input: {
   userId: string;
   snapshotImageId: number;
 }): Promise<{ previousSnapshotId: string | null }> => {
-  "use step";
   const newId = String(input.snapshotImageId);
   const environment = SNAPSHOT_ENVIRONMENT;
   const result = await prisma.$transaction(async (tx) => {
@@ -260,7 +247,6 @@ export const stepDeleteBuilder = async (input: {
   userId: string;
   hetznerBuilderId: number;
 }): Promise<{ deleted: boolean }> => {
-  "use step";
   let client: Awaited<ReturnType<typeof getUserHetznerContext>>["client"];
   try {
     ({ client } = await getUserHetznerContext(input.userId));
@@ -281,7 +267,7 @@ export const stepDeletePreviousSnapshot = async (input: {
   previousSnapshotId: string | null;
   newSnapshotId: string;
 }): Promise<{ deleted: boolean }> => {
-  "use step";
+  
   if (
     !input.previousSnapshotId ||
     input.previousSnapshotId === input.newSnapshotId
@@ -309,11 +295,10 @@ export const stepDeletePreviousSnapshot = async (input: {
 export const stepDeleteAgentBlob = async (input: {
   agentBlobUrl: string | null;
 }): Promise<void> => {
-  "use step";
   if (!input.agentBlobUrl) {
     return;
   }
-  await blobDel(input.agentBlobUrl).catch(() => {
+  await storageDel(input.agentBlobUrl).catch(() => {
     // best-effort; agent blobs are deduplicated by sha so leftover ones are cheap
   });
 };
@@ -322,7 +307,7 @@ export const stepMarkFailed = async (input: {
   buildId: string;
   reason: string;
 }) => {
-  "use step";
+  
   await prisma.snapshotBuild.update({
     data: {
       errorReason: input.reason,
@@ -339,7 +324,6 @@ export const stepReadBuildState = async (input: {
   hetznerBuilderId: number | null;
   agentBlobUrl: string | null;
 } | null> => {
-  "use step";
   const build = await prisma.snapshotBuild.findUnique({
     select: { agentBlobUrl: true, hetznerBuilderId: true },
     where: { id: input.buildId },

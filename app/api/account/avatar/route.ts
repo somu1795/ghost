@@ -1,8 +1,8 @@
-import { del, get, put } from "@vercel/blob";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { requireUser } from "@/lib/session";
+import { storageDel, storageGet, storagePut } from "@/lib/storage";
 
 export const runtime = "nodejs";
 
@@ -20,7 +20,7 @@ export const GET = async (request: Request) => {
     return new NextResponse("Not found", { status: 404 });
   }
 
-  const result = await get(user.image, {
+  const result = await storageGet(user.image, {
     access: "private",
     ifNoneMatch: request.headers.get("if-none-match") ?? undefined,
   });
@@ -70,7 +70,8 @@ export const POST = async (request: Request) => {
     );
   }
 
-  const blob = await put(`avatars/${user.id}/${file.name}`, file, {
+  const buffer = Buffer.from(await file.arrayBuffer());
+  const blob = await storagePut(`avatars/${user.id}/${file.name}`, buffer, {
     access: "private",
     addRandomSuffix: true,
   });
@@ -83,7 +84,7 @@ export const POST = async (request: Request) => {
 
   if (previous && previous !== blob.pathname) {
     try {
-      await del(previous);
+      await storageDel(previous);
     } catch (error) {
       console.error("Failed to delete previous avatar", error);
     }
@@ -99,7 +100,7 @@ export const DELETE = async () => {
   }
 
   try {
-    await del(user.image);
+    await storageDel(user.image);
   } catch (error) {
     console.error("Failed to delete avatar", error);
   }

@@ -1,4 +1,4 @@
-import { createMiddleware, defaults, withVercelToolbar } from "@nosecone/next";
+import { createMiddleware, defaults } from "@nosecone/next";
 import type { NoseconeOptions } from "@nosecone/next";
 import { getSessionCookie } from "better-auth/cookies";
 import { NextResponse } from "next/server";
@@ -9,8 +9,7 @@ export const noseconeOptions: NoseconeOptions = {
   contentSecurityPolicy: false,
 };
 
-export const noseconeOptionsWithToolbar: NoseconeOptions =
-  withVercelToolbar(noseconeOptions);
+
 
 const securityHeaders = createMiddleware(noseconeOptions);
 
@@ -25,7 +24,6 @@ const PUBLIC_PATHS = [
   "/api/agent",
   "/api/snapshot",
   "/monitoring",
-  "/.well-known/workflow",
 ];
 
 const isPublic = (pathname: string) =>

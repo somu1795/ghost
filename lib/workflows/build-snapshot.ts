@@ -1,5 +1,3 @@
-import { FatalError, sleep } from "workflow";
-
 import {
   stepCompileAgent,
   stepCreateBuilderVm,
@@ -23,12 +21,13 @@ const BUILD_POLL_SECONDS = 15;
 const MAX_SNAPSHOT_WAIT_SECONDS = 15 * 60;
 const SNAPSHOT_POLL_SECONDS = 10;
 
+const sleep = (seconds: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
+
 export const buildSnapshot = async (input: {
   buildId: string;
   userId: string;
 }) => {
-  "use workflow";
-
   const { buildId, userId } = input;
 
   try {
@@ -55,13 +54,13 @@ export const buildSnapshot = async (input: {
         break;
       }
       if (status === "unknown") {
-        throw new FatalError("Builder VM disappeared mid-build");
+        throw new Error("Builder VM disappeared mid-build");
       }
       if (status === "running" && !observedRunning) {
         observedRunning = true;
         await stepUpdateBuildStatus({ buildId, status: "installing" });
       }
-      await sleep(`${BUILD_POLL_SECONDS}s`);
+      await sleep(BUILD_POLL_SECONDS);
     }
     if (!buildFinished) {
       throw new Error(
@@ -90,7 +89,7 @@ export const buildSnapshot = async (input: {
       if (status === "unavailable" || status === "unknown") {
         throw new Error(`Snapshot image entered status '${status}'`);
       }
-      await sleep(`${SNAPSHOT_POLL_SECONDS}s`);
+      await sleep(SNAPSHOT_POLL_SECONDS);
     }
     if (!snapshotReady) {
       throw new Error("Snapshot never became available (timed out)");
@@ -128,9 +127,7 @@ export const buildSnapshot = async (input: {
       await stepDeleteAgentBlob({ agentBlobUrl: state.agentBlobUrl });
     }
 
-    if (error instanceof FatalError) {
-      return;
-    }
+    // Re-throw so BullMQ marks the job as failed and can retry
     throw error;
   }
 };
