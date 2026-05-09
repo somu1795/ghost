@@ -59,7 +59,7 @@ docker compose up -d ghost
 echo -e "\n${GREEN}====================================================${NC}"
 echo -e "${GREEN}🚀 Ghost is now running successfully!${NC}"
 echo -e "${GREEN}====================================================${NC}"
-echo -e "Application URL: ${YELLOW}http://localhost:3000${NC}"
+echo -e "Application URL: ${YELLOW}http://localhost:3005${NC}"
 echo -e "To view logs:    ${YELLOW}./start.sh logs${NC} or ${YELLOW}docker compose logs -f${NC}"
 echo -e "To stop:         ${YELLOW}./stop.sh${NC}"
 echo -e "===================================================="
