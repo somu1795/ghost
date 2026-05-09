@@ -9,9 +9,8 @@ import { env } from "@/lib/env";
 import { prisma } from "./db";
 
 export const auth = betterAuth({
-  baseURL: {
-    allowedHosts: [new URL(env.BETTER_AUTH_URL).host, "*.vercel.app"],
-  },
+  baseURL: env.BETTER_AUTH_URL,
+  trustHost: true,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
   emailAndPassword: {
     enabled: true,
