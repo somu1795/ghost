@@ -8,6 +8,7 @@ const otelRegex = /@opentelemetry\/instrumentation/u;
 
 let config: NextConfig = {
   output: "standalone",
+  turbopack: {},
 
   images: {
     formats: ["image/avif", "image/webp"],
