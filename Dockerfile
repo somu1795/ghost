@@ -5,7 +5,7 @@ WORKDIR /app
 FROM base AS deps
 COPY package.json bun.lock bunfig.toml ./
 COPY patches ./patches
-RUN bun install --frozen-lockfile --ignore-scripts
+RUN bun install --ignore-scripts
 
 # --- Agent binary (pre-built) ---
 FROM deps AS agent
