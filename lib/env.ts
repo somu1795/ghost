@@ -16,6 +16,7 @@ export const env = createEnv({
     ANALYZE: process.env.ANALYZE,
     APP_URL: process.env.APP_URL,
     BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_TRUSTED_ORIGINS: process.env.BETTER_AUTH_TRUSTED_ORIGINS,
     BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
     BOOTSTRAP_JWT_SECRET: process.env.BOOTSTRAP_JWT_SECRET,
     DATABASE_URL: process.env.DATABASE_URL,
@@ -40,6 +41,7 @@ export const env = createEnv({
     ANALYZE: z.string().optional(),
     APP_URL: z.string().min(1).url(),
     BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_TRUSTED_ORIGINS: z.string().optional(),
     BETTER_AUTH_URL: z.string().min(1).url(),
     BOOTSTRAP_JWT_SECRET: z.string().min(32),
 
