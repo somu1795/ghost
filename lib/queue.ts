@@ -12,7 +12,7 @@ if (!REDIS_URL) {
 const createConnection = () => new Redis(REDIS_URL!, { maxRetriesPerRequest: null });
 
 // ─── Queues ─────────────────────────────────────────────────────
-export const provisionQueue = new Queue("ghost:provision-server", {
+export const provisionQueue = new Queue("ghost-provision-server", {
   connection: createConnection(),
   defaultJobOptions: {
     attempts: 3,
@@ -22,7 +22,7 @@ export const provisionQueue = new Queue("ghost:provision-server", {
   },
 });
 
-export const teardownQueue = new Queue("ghost:teardown-server", {
+export const teardownQueue = new Queue("ghost-teardown-server", {
   connection: createConnection(),
   defaultJobOptions: {
     attempts: 3,
@@ -32,7 +32,7 @@ export const teardownQueue = new Queue("ghost:teardown-server", {
   },
 });
 
-export const snapshotQueue = new Queue("ghost:build-snapshot", {
+export const snapshotQueue = new Queue("ghost-build-snapshot", {
   connection: createConnection(),
   defaultJobOptions: {
     attempts: 2,
@@ -58,7 +58,7 @@ export const startWorkers = async () => {
   const { buildSnapshot } = await import("@/lib/workflows/build-snapshot");
 
   const provisionWorker = new Worker(
-    "ghost:provision-server",
+    "ghost-provision-server",
     async (job: Job) => {
       await provisionServer(job.data);
     },
@@ -72,7 +72,7 @@ export const startWorkers = async () => {
   );
 
   const teardownWorker = new Worker(
-    "ghost:teardown-server",
+    "ghost-teardown-server",
     async (job: Job) => {
       await teardownServer(job.data);
     },
@@ -85,7 +85,7 @@ export const startWorkers = async () => {
   );
 
   const snapshotWorker = new Worker(
-    "ghost:build-snapshot",
+    "ghost-build-snapshot",
     async (job: Job) => {
       await buildSnapshot(job.data);
     },
