@@ -49,7 +49,7 @@ docker compose build ghost
 echo -e "${GREEN}Running database migrations...${NC}"
 # We run this in a temporary container using the ghost image to ensure the schema matches the codebase
 # Using bunx to fetch the prisma CLI dynamically as needed
-docker compose run --rm --entrypoint="sh -c 'bun add prisma@7.8.0 && bunx prisma migrate deploy'" ghost
+docker compose run --rm --entrypoint="sh -c 'bun add --ignore-scripts prisma@7.8.0 && bunx prisma migrate deploy'" ghost
 echo -e "${GREEN}Database migrations complete.${NC}\n"
 
 # 6. Start Application
