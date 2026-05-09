@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { defineConfig } from "prisma/config";
 
 // Migrate / introspection commands need a direct (non-pooled) connection. The
