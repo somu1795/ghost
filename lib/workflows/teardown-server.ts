@@ -1,32 +1,29 @@
-import {
-  stepDeleteHetzner,
-  stepMarkDeleted,
-  stepReadPhase,
-  stepSendDeleteCommand,
-} from "./steps";
+/**
+ * lib/workflows/teardown-server.ts  (Docker backend)
+ *
+ * Stops and removes the Docker container for a server.
+ */
+import { destroyGameServer } from "@/lib/docker/runner";
+import { emitActivity } from "@/lib/events/emit";
 
-const MAX_DRAIN_SECONDS = 120;
-const DRAIN_POLL_SECONDS = 3;
-
-const sleep = (seconds: number) =>
-  new Promise<void>((resolve) => setTimeout(resolve, seconds * 1000));
+import { stepMarkDeleted } from "./steps";
 
 export const teardownServer = async (input: { serverId: string }) => {
   const { serverId } = input;
 
-  const { hadAgent } = await stepSendDeleteCommand(serverId);
+  try {
+    await emitActivity({
+      message: "Stopping game container",
+      phase: "deleting",
+      serverId,
+    });
 
-  if (hadAgent) {
-    const deadline = Date.now() + MAX_DRAIN_SECONDS * 1000;
-    while (Date.now() < deadline) {
-      const phase = await stepReadPhase(serverId);
-      if (phase === "deleted" || phase === "errored") {
-        break;
-      }
-      await sleep(DRAIN_POLL_SECONDS);
-    }
+    await destroyGameServer(serverId);
+    await stepMarkDeleted(serverId);
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : "Unknown error";
+    console.error("[teardown] failed:", reason);
+    // Still mark deleted so the UI doesn't get stuck.
+    await stepMarkDeleted(serverId);
   }
-
-  await stepDeleteHetzner(serverId);
-  await stepMarkDeleted(serverId);
 };

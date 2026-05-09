@@ -1,30 +1,13 @@
 import { redirect } from "next/navigation";
 
 import { games } from "@/games";
-import { SNAPSHOT_ENVIRONMENT } from "@/lib/env";
-import { MissingHetznerCredentialsError } from "@/lib/hetzner";
-import { getHetznerCatalog } from "@/lib/hetzner/catalog";
-import { getUserHetznerImageContext } from "@/lib/hetzner/credentials";
 import { requireUser } from "@/lib/session";
 
 import { NewServerForm } from "./components/form";
 import type { GameOption } from "./components/form";
 
 const NewServerPage = async () => {
-  const user = await requireUser();
-  let catalog: Awaited<ReturnType<typeof getHetznerCatalog>>;
-  try {
-    const { client, imageId } = await getUserHetznerImageContext(
-      user.id,
-      SNAPSHOT_ENVIRONMENT
-    );
-    catalog = await getHetznerCatalog(client, imageId);
-  } catch (error) {
-    if (error instanceof MissingHetznerCredentialsError) {
-      redirect("/dashboard/account/backend");
-    }
-    throw error;
-  }
+  await requireUser();
 
   const gameOptions: GameOption[] = games
     .filter((g) => g.enabled)
@@ -41,13 +24,7 @@ const NewServerPage = async () => {
       settings: g.settings,
     }));
 
-  return (
-    <NewServerForm
-      games={gameOptions}
-      serverTypes={catalog.serverTypes}
-      currency={catalog.currency}
-    />
-  );
+  return <NewServerForm games={gameOptions} />;
 };
 
 export default NewServerPage;

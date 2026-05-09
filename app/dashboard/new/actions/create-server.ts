@@ -10,18 +10,12 @@ import { z } from "zod";
 
 import { games, validateSettings } from "@/games";
 import { prisma } from "@/lib/db";
-import { SNAPSHOT_ENVIRONMENT } from "@/lib/env";
-import { MissingHetznerCredentialsError } from "@/lib/hetzner";
-import { getHetznerCatalog } from "@/lib/hetzner/catalog";
-import { getUserHetznerImageContext } from "@/lib/hetzner/credentials";
 import { provisionQueue } from "@/lib/queue";
 import { requireUser } from "@/lib/session";
 
 const createServerSchema = z.object({
   game: z.enum(games.map((g) => g.id) as [string, ...string[]]),
-  location: z.string().min(1),
   name: z.string().min(3).max(40),
-  serverType: z.string().min(1),
   settings: z.record(z.string(), z.unknown()).optional(),
 });
 
@@ -46,48 +40,6 @@ export const createServer = async (
     return { error: "Unknown game", ok: false };
   }
 
-  let catalog: Awaited<ReturnType<typeof getHetznerCatalog>>;
-  try {
-    const { client, imageId } = await getUserHetznerImageContext(
-      user.id,
-      SNAPSHOT_ENVIRONMENT
-    );
-    catalog = await getHetznerCatalog(client, imageId);
-  } catch (error) {
-    if (error instanceof MissingHetznerCredentialsError) {
-      return {
-        error: "Configure your Hetzner credentials in account settings.",
-        ok: false,
-      };
-    }
-    throw error;
-  }
-
-  const type = catalog.serverTypes.find(
-    (t) => t.name === parsed.data.serverType
-  );
-  if (!type) {
-    return { error: "Unknown server type", ok: false };
-  }
-  if (
-    type.memory < game.requirements.memory ||
-    type.cores < game.requirements.cpu ||
-    type.disk < game.requirements.disk
-  ) {
-    return { error: "Server type does not meet game requirements", ok: false };
-  }
-
-  const location = type.locations.find((l) => l.name === parsed.data.location);
-  if (!location) {
-    return { error: "Region not supported for this server type", ok: false };
-  }
-  if (!location.available) {
-    return {
-      error: "Region is temporarily unavailable. Please pick another.",
-      ok: false,
-    };
-  }
-
   let settings: Record<string, unknown> = {};
   if (parsed.data.settings) {
     const validation = validateSettings(game.settings, parsed.data.settings);
@@ -109,12 +61,12 @@ export const createServer = async (
       game: parsed.data.game,
       id,
       joinPassword,
-      location: parsed.data.location,
+      location: "local",
       name: parsed.data.name,
       observedState: "pending",
       phase: "queued",
       rconPassword,
-      serverType: parsed.data.serverType,
+      serverType: "docker",
       settings: settings as Prisma.InputJsonValue,
       userId: user.id,
     },

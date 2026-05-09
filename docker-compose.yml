@@ -6,6 +6,8 @@ services:
     env_file: .env
     volumes:
       - ghost-storage:/data/ghost-storage
+      # Mount the host Docker socket so Ghost can manage game containers
+      - /var/run/docker.sock:/var/run/docker.sock
     depends_on:
       postgres:
         condition: service_healthy

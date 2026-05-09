@@ -132,10 +132,11 @@ model Server {
   userId          String
   name            String
   game            String
-  location        String
-  serverType      String
+  location        String            @default("local")
+  serverType      String            @default("docker")
   hetznerServerId String?           @unique
   ipv4            String?
+  hostPort        Int?
   desiredState    DesiredState      @default(running)
   observedState   ObservedState     @default(pending)
   phase           String            @default("queued")
